@@ -11,6 +11,11 @@ Icon
 # or operating system, you probably want to add a global ignore instead:
 #   git config --global core.excludesfile '~/.gitignore_global'
 
+# jeykll
+_site
+.sass-cache
+.jekyll-metadata
+
 # Ignore bundler config.
 *.swp
 /.bundle
