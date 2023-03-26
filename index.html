@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>山手線の駅選択</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEAg3QhqLMpG8r+Knujsl5/1z7/fS4BpVp5Bf3G7lC/4y4gq6Uq8Mf8/1yafk" crossorigin="anonymous">
     <style>
         #result {
             font-size: 1.5rem;
@@ -10,41 +12,44 @@
         }
     </style>
 </head>
-<body>
-    <h1>山手線の駅選択</h1>
-    <label for="station-select">駅を選択:</label>
-    <select id="station-select">
-        <option id="1" name="東京">東京</option>
-        <option id="2" name="神田">神田</option>
-        <option id="3" name="秋葉原">秋葉原</option>
-        <option id="4" name="御徒町">御徒町</option>
-        <option id="5" name="上野">上野</option>
-        <option id="6" name="鶯谷">鶯谷</option>
-        <option id="7" name="日暮里">日暮里</option>
-        <option id="8" name="西日暮里">西日暮里</option>
-        <option id="9" name="田端">田端</option>
-        <option id="10" name="駒込">駒込</option>
-        <option id="11" name="巣鴨">巣鴨</option>
-        <option id="12" name="大塚">大塚</option>
-        <option id="13" name="池袋">池袋</option>
-        <option id="14" name="目白">目白</option>
-        <option id="15" name="高田馬場">高田馬場</option>
-        <option id="16" name="新大久保">新大久保</option>
-        <option id="17" name="新宿">新宿</option>
-        <option id="18" name="代々木">代々木</option>
-        <option id="19" name="原宿">原宿</option>
-        <option id="20" name="渋谷">渋谷</option>
-        <option id="21" name="恵比寿">恵比寿</option>
-        <option id="22" name="目黒">目黒</option>
-        <option id="23" name="品川">品川</option>
-        <option id="24" name="高輪ゲートウェイ">高輪ゲートウェイ</option>
-        <option id="25" name="田町">田町</option>
-        <option id="26" name="浜松町">浜松町</option>
-        <option id="27" name="新橋">新橋</option>
-        <option id="28" name="有楽町">有楽町</option>
-    </select>
-    <button id="roll-dice">サイコロを振る</button>
-    <div id="result"></div>
+<body class="container">
+    <h1 class="my-4">山手線の駅選択</h1>
+    <div class="mb-3">
+        <label for="station-select" class="form-label">駅を選択:</label>
+        <select id="station-select" class="form-select">
+            <option id="1" value="1">東京</option>
+            <option id="2" value="2">神田</option>
+            <option id="3" value="3">秋葉原</option>
+            <option id="4" value="4">御徒町</option>
+            <option id="5" value="5">上野</option>
+            <option id="6" value="6">鶯谷</option>
+            <option id="7" value="7">日暮里</option>
+            <option id="8" value="8">西日暮里</option>
+            <option id="9" value="9">田端</option>
+            <option id="10" value="10">駒込</option>
+            <option id="11" value="11">巣鴨</option>
+            <option id="12" value="12">大塚</option>
+            <option id="13" value="13">池袋</option>
+            <option id="14" value="14">目白</option>
+            <option id="15" value="15">高田馬場</option>
+            <option id="16" value="16">新大久保</option>
+            <option id="17" value="17">新宿</option>
+            <option id="18" value="18">代々木</option>
+            <option id="19" value="19">原宿</option>
+            <option id="20" value="20">渋谷</option>
+            <option id="21" value="21">恵比寿</option>
+            <option id="22" value="22">目黒</option>
+            <option id="23" value="23">五反田</option>
+            <option id="24" value="24">品川</option>
+            <option id="25" value="25">高輪ゲートウェイ</option>
+            <option id="26" value="26">田町</option>
+            <option id="27" value="27">浜松町</option>
+            <option id="28" value="28">新橋</option>
+            <option id="29" value="29">有楽町</option>
+        </select>
+    </div>
+    <button id="roll-dice" class="btn btn-primary">サイコロを振る</button>
+    <div id="result" class="mt-4"></div>
 
     <script>
         document.getElementById('roll-dice').addEventListener('click', () => {
@@ -58,7 +63,7 @@
                 result.textContent = `サイコロの目: ${diceRoll}`;
 
                 setTimeout(() => {
-                    const nextStationId = (currentStationId + diceRoll) % 28;
+                    const nextStationId = (currentStationId + diceRoll) % 29;
                     const nextStationIndex = nextStationId === 0 ? 0 : nextStationId - 1;
                     const nextStationName = stationSelect.options[nextStationIndex] ? stationSelect.options[nextStationIndex].text : "駅名が見つかりません";
                     result.textContent += `, 次の駅: ${nextStationName}`;
@@ -66,5 +71,8 @@
             }, 1000);
         });
     </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz4fnFO9gybB2TlgzOM+tGJpbGpa0fJLTXmD6pVU6nQNt8rWh7e4jEwytI" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js" integrity="sha384-cn7l7gDp0eyniUwwAZgrzD06kc/tftFf19TOAs2zVinnD/C7E91j9yyk5//jjpt/" crossorigin="anonymous"></script>
 </body>
 </html>
