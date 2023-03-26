@@ -63,7 +63,7 @@
                 result.textContent = `サイコロの目: ${diceRoll}`;
 
                 setTimeout(() => {
-                    const nextStationId = (currentStationId + diceRoll) % 29;
+                    const nextStationId = ((currentStationId + diceRoll - 1) % 29) + 1;
                     const nextStationIndex = nextStationId === 0 ? 0 : nextStationId - 1;
                     const nextStationName = stationSelect.options[nextStationIndex] ? stationSelect.options[nextStationIndex].text : "駅名が見つかりません";
                     result.textContent += `, 次の駅: ${nextStationName}`;
