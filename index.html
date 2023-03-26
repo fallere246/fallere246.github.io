@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>山手線の駅選択</title>
+    <style>
+        #result {
+            font-size: 1.5rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>山手線の駅選択</h1>
+    <label for="station-select">駅を選択:</label>
+    <select id="station-select">
+        <option id="1" name="東京">東京</option>
+        <option id="2" name="神田">神田</option>
+        <option id="3" name="秋葉原">秋葉原</option>
+        <option id="4" name="御徒町">御徒町</option>
+        <option id="5" name="上野">上野</option>
+        <option id="6" name="鶯谷">鶯谷</option>
+        <option id="7" name="日暮里">日暮里</option>
+        <option id="8" name="西日暮里">西日暮里</option>
+        <option id="9" name="田端">田端</option>
+        <option id="10" name="駒込">駒込</option>
+        <option id="11" name="巣鴨">巣鴨</option>
+        <option id="12" name="大塚">大塚</option>
+        <option id="13" name="池袋">池袋</option>
+        <option id="14" name="目白">目白</option>
+        <option id="15" name="高田馬場">高田馬場</option>
+        <option id="16" name="新大久保">新大久保</option>
+        <option id="17" name="新宿">新宿</option>
+        <option id="18" name="代々木">代々木</option>
+        <option id="19" name="原宿">原宿</option>
+        <option id="20" name="渋谷">渋谷</option>
+        <option id="21" name="恵比寿">恵比寿</option>
+        <option id="22" name="目黒">目黒</option>
+        <option id="23" name="品川">品川</option>
+        <option id="24" name="高輪ゲートウェイ">高輪ゲートウェイ</option>
+        <option id="25" name="田町">田町</option>
+        <option id="26" name="浜松町">浜松町</option>
+        <option id="27" name="新橋">新橋</option>
+        <option id="28" name="有楽町">有楽町</option>
+    </select>
+    <button id="roll-dice">サイコロを振る</button>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('roll-dice').addEventListener('click', () => {
+            const stationSelect = document.getElementById('station-select');
+            const currentStationId = parseInt(stationSelect.options[stationSelect.selectedIndex].id);
+            const result = document.getElementById('result');
+            result.textContent = "";
+
+            setTimeout(() => {
+                const diceRoll = Math.floor(Math.random() * 6) + 1;
+                result.textContent = `サイコロの目: ${diceRoll}`;
+
+                setTimeout(() => {
+                    const nextStationId = (currentStationId + diceRoll) % 28;
+                    const nextStationIndex = nextStationId === 0 ? 0 : nextStationId - 1;
+                    const nextStationName = stationSelect.options[nextStationIndex] ? stationSelect.options[nextStationIndex].text : "駅名が見つかりません";
+                    result.textContent += `, 次の駅: ${nextStationName}`;
+                }, 1000);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
