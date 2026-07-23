@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>くくチェック - こえで九九のれんしゅう</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "BIZ UDGothic", "Yu Gothic", sans-serif;
+    background: linear-gradient(160deg, #fdf6e3 0%, #e3f2fd 100%);
+    color: #37474f;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .screen { display: none; width: 100%; max-width: 560px; text-align: center; }
+  .screen.active { display: block; }
+  h1 { font-size: 2rem; margin-bottom: 8px; color: #ff7043; }
+  .sub { font-size: 0.95rem; color: #78909c; margin-bottom: 24px; }
+
+  /* ===== トップ ===== */
+  .dan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .dan-btn {
+    font-family: inherit;
+    font-size: 1.4rem;
+    font-weight: bold;
+    padding: 20px 0;
+    border: none;
+    border-radius: 16px;
+    background: #fff;
+    color: #ff7043;
+    box-shadow: 0 4px 0 #ffccbc;
+    cursor: pointer;
+  }
+  .dan-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #ffccbc; }
+  .note { font-size: 0.8rem; color: #90a4ae; line-height: 1.6; }
+
+  /* ===== クイズ ===== */
+  .quiz-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 1rem;
+    color: #78909c;
+  }
+  .dots { letter-spacing: 4px; font-size: 0.8rem; }
+  .dots .done { color: #66bb6a; }
+  .dots .now { color: #ff7043; }
+  .dots .todo { color: #cfd8dc; }
+
+  .card {
+    position: relative;
+    background: #fff;
+    border-radius: 24px;
+    padding: 48px 16px 40px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+  }
+  #reading {
+    min-height: 2.2rem;
+    font-size: 1.6rem;
+    color: #ec407a;
+    font-weight: bold;
+    margin-bottom: 8px;
+    visibility: hidden;
+  }
+  #equation { font-size: 4.2rem; font-weight: bold; letter-spacing: 0.05em; }
+  #mark {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11rem;
+    font-weight: bold;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  #mark.ok { color: rgba(102, 187, 106, 0.75); opacity: 1; }
+  #mark.ng { color: rgba(239, 83, 80, 0.75); opacity: 1; }
+
+  .mic-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 1rem;
+    color: #78909c;
+    margin-bottom: 8px;
+  }
+  .mic-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #ef5350;
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+  #heard { min-height: 1.4rem; font-size: 0.9rem; color: #b0bec5; margin-bottom: 16px; }
+  .quit { font-size: 0.85rem; color: #90a4ae; text-decoration: underline; cursor: pointer; background: none; border: none; font-family: inherit; }
+
+  /* ===== けっか ===== */
+  .result-list {
+    background: #fff;
+    border-radius: 16px;
+    padding: 12px 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    text-align: left;
+  }
+  .result-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed #eceff1;
+    font-size: 1.05rem;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-row .eq { font-weight: bold; width: 6.5em; }
+  .result-row .yomi { flex: 1; color: #ec407a; font-size: 0.9rem; }
+  .result-row .mk { font-weight: bold; font-size: 1.2rem; }
+  .result-row .mk.ok { color: #66bb6a; }
+  .result-row .mk.ng { color: #ef5350; }
+  #result-title { margin-bottom: 4px; }
+  #result-summary { margin-bottom: 20px; color: #78909c; }
+  .links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .link-btn {
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: bold;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.12);
+  }
+  .link-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,0.12); }
+  .link-btn.home { background: #eceff1; color: #546e7a; }
+  .link-btn.next { background: #ff7043; color: #fff; }
+
+  #unsupported {
+    display: none;
+    background: #fff3e0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    color: #e65100;
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== トップ画面 ===== -->
+<div id="screen-top" class="screen active">
+  <h1>くくチェック</h1>
+  <p class="sub">こえに だして 九九を いってみよう！<br>れんしゅうする だんを えらんでね</p>
+  <div id="unsupported">
+    このブラウザは おんせいにんしき に たいおうしていません。<br>
+    Chrome か Safari で ひらいてね。
+  </div>
+  <div class="dan-grid" id="dan-grid"></div>
+  <p class="note">
+    マイクの つか用きょかを きかれたら「きょか」してね。<br>
+    しずかな へやで、はっきり ゆっくり いうと せいかいしやすいよ。
+  </p>
+</div>
+
+<!-- ===== クイズ画面 ===== -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-head">
+    <span id="quiz-dan"></span>
+    <span class="dots" id="dots"></span>
+  </div>
+  <div class="card">
+    <div id="reading">&nbsp;</div>
+    <div id="equation"></div>
+    <div id="mark"></div>
+  </div>
+  <div class="mic-line"><span class="mic-dot"></span><span>きいてるよ！ こえに だして いってね</span></div>
+  <div id="heard">&nbsp;</div>
+  <button class="quit" id="btn-quit">やめて トップに もどる</button>
+</div>
+
+<!-- ===== けっか画面 ===== -->
+<div id="screen-result" class="screen">
+  <h1 id="result-title"></h1>
+  <p id="result-summary"></p>
+  <div class="result-list" id="result-list"></div>
+  <div class="links">
+    <button class="link-btn home" id="btn-home">トップに もどる</button>
+    <button class="link-btn next" id="btn-next"></button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ===== 九九の正調の唱え（ひらがな） dan → [×1..×9] ===== */
+const READINGS = {
+  1: ["いんいちがいち","いんにがに","いんさんがさん","いんしがし","いんごがご","いんろくがろく","いんしちがしち","いんはちがはち","いんくがく"],
+  2: ["にいちがに","ににんがし","にさんがろく","にしがはち","にごじゅう","にろくじゅうに","にしちじゅうし","にはちじゅうろく","にくじゅうはち"],
+  3: ["さんいちがさん","さんにがろく","さざんがく","さんしじゅうに","さんごじゅうご","さぶろくじゅうはち","さんしちにじゅういち","さんぱにじゅうし","さんくにじゅうしち"],
+  4: ["しいちがし","しにがはち","しさんじゅうに","ししじゅうろく","しごにじゅう","しろくにじゅうし","ししちにじゅうはち","しはさんじゅうに","しくさんじゅうろく"],
+  5: ["ごいちがご","ごにじゅう","ごさんじゅうご","ごしにじゅう","ごごにじゅうご","ごろくさんじゅう","ごしちさんじゅうご","ごはしじゅう","ごっくしじゅうご"],
+  6: ["ろくいちがろく","ろくにじゅうに","ろくさんじゅうはち","ろくしにじゅうし","ろくごさんじゅう","ろくろくさんじゅうろく","ろくしちしじゅうに","ろくはしじゅうはち","ろっくごじゅうし"],
+  7: ["しちいちがしち","しちにじゅうし","しちさんにじゅういち","しちしにじゅうはち","しちごさんじゅうご","しちろくしじゅうに","しちしちしじゅうく","しちはごじゅうろく","しちくろくじゅうさん"],
+  8: ["はちいちがはち","はちにじゅうろく","はちさんにじゅうし","はちしさんじゅうに","はちごしじゅう","はちろくしじゅうはち","はちしちごじゅうろく","はっぱろくじゅうし","はっくしちじゅうに"],
+  9: ["くいちがく","くにじゅうはち","くさんにじゅうしち","くしさんじゅうろく","くごしじゅうご","くろくごじゅうし","くしちろくじゅうさん","くはしちじゅうに","くくはちじゅういち"]
+};
+
+/* ===== 数の読みバリエーション（答えの末尾一致判定に使う） ===== */
+const DIGIT_READINGS = [[], ["いち"], ["に"], ["さん"], ["し","よん"], ["ご"], ["ろく"], ["しち","なな"], ["はち"], ["く","きゅう"]];
+function numReadings(n) {
+  if (n < 10) return DIGIT_READINGS[n];
+  const t = Math.floor(n / 10), u = n % 10;
+  const tens = t === 1 ? [""] : DIGIT_READINGS[t];
+  const units = u === 0 ? [""] : DIGIT_READINGS[u];
+  const out = [];
+  for (const tp of tens) for (const up of units) out.push(tp + "じゅう" + up);
+  return out;
+}
+
+/* ===== 認識テキストの正規化 ===== */
+const KANJI_NUM = {"〇":0,"零":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+function baseNormalize(s) {
+  s = s.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+  s = s.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+  s = s.replace(/(です|でした|だよ|だ|よ|ね|。|、|\.|,|？|\?|！|!)+$/, "");
+  return s;
+}
+// 漢数字→算用数字。「四十二」は 42 とも「4 12」（し・じゅうに）とも読めるため2通り解釈する
+function kanjiToDigits(s, split) {
+  if (split) {
+    s = s.replace(/([一二三四五六七八九])十([一二三四五六七八九])?/g,
+      (m, a, b) => " " + KANJI_NUM[a] + " " + (10 + (b ? KANJI_NUM[b] : 0)) + " ");
+  }
+  s = s.replace(/([一二三四五六七八九])?十([一二三四五六七八九])?/g,
+    (m, a, b) => " " + String((a ? KANJI_NUM[a] : 1) * 10 + (b ? KANJI_NUM[b] : 0)) + " ");
+  s = s.replace(/[〇零一二三四五六七八九]/g, m => " " + KANJI_NUM[m] + " ");
+  return s;
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+function similarity(a, b) {
+  const d = levenshtein(a, b);
+  return 1 - d / Math.max(a.length, b.length, 1);
+}
+
+/* ===== 正誤判定 ===== */
+// ひらがなの読み → 数値 の対応表（1〜81）。末尾最長一致で「言った数」を推定する
+const READING_TO_NUM = (() => {
+  const list = [];
+  for (let n = 1; n <= 81; n++) for (const r of numReadings(n)) list.push([r, n]);
+  return list;
+})();
+
+function judge(raw, a, b, canonical) {
+  const ans = a * b;
+  const base = baseNormalize(raw);
+  const hira = base.replace(/[^ぁ-ゖー]/g, "");
+  const ansR = numReadings(ans);
+  // 1. 答えの読みのみ（「じゅうに」）は正解
+  for (const r of ansR) if (hira === r) return true;
+  // 2. 正しい唱えパターン（正調＋読みバリエーション）との末尾一致
+  const pats = new Set([canonical]);
+  for (const ra of DIGIT_READINGS[a]) for (const rb of DIGIT_READINGS[b])
+    for (const g of ["が", ""]) for (const rc of ansR) pats.add(ra + rb + g + rc);
+  for (const p of pats) if (hira.endsWith(p)) return true;
+  // 3. 数値化して最後の数が答えに一致（「1 1 が 1」「九九 81」「三四十二」など）
+  for (const split of [false, true]) {
+    const nums = (kanjiToDigits(base, split).match(/\d+/g) || []).map(Number);
+    if (nums.length && nums[nums.length - 1] === ans) return true;
+  }
+  // 4. 末尾の数の読み（最長一致）＝言った数が答えと違えば誤答
+  let best = null;
+  for (const [r, n] of READING_TO_NUM) {
+    if (hira.endsWith(r) && (!best || r.length > best[0].length)) best = [r, n];
+  }
+  if (best) return best[1] === ans;
+  // 数値を言っていて答えと不一致なら誤答
+  if (/\d/.test(kanjiToDigits(base, false))) return false;
+  // 5. 正調の唱えとの類似度で聞き取りゆれを救済
+  return hira.length >= 4 && similarity(hira, canonical) >= 0.8;
+}
+
+/* ===== 効果音 ===== */
+let audioCtx = null;
+function beep(freqs, dur) {
+  if (!audioCtx) return;
+  let t = audioCtx.currentTime;
+  for (const f of freqs) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.frequency.value = f;
+    osc.type = "sine";
+    g.gain.setValueAtTime(0.15, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(g).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+    t += dur;
+  }
+}
+const soundOK = () => beep([784, 1047], 0.18);
+const soundNG = () => beep([220, 175], 0.22);
+
+/* ===== 画面制御 ===== */
+const $ = id => document.getElementById(id);
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+/* ===== 音声認識 ===== */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+let wantListen = false;
+
+function startRecognition() {
+  if (!SR) return;
+  rec = new SR();
+  rec.lang = "ja-JP";
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.onresult = ev => {
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const text = ev.results[i][0].transcript.trim();
+      if (!text) continue;
+      $("heard").textContent = "きこえたこえ：" + text;
+      if (ev.results[i].isFinal) onFinalResult(text);
+    }
+  };
+  rec.onerror = ev => {
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
+      wantListen = false;
+      alert("マイクが つかえません。ブラウザの せっていで マイクを きょか してね。");
+      goTop();
+    }
+  };
+  rec.onend = () => {
+    if (wantListen) setTimeout(() => { try { rec.start(); } catch (e) {} }, 250);
+  };
+  wantListen = true;
+  try { rec.start(); } catch (e) {}
+}
+function stopRecognition() {
+  wantListen = false;
+  if (rec) { try { rec.stop(); } catch (e) {} }
+}
+
+/* ===== クイズ進行 ===== */
+let dan = 0;
+let idx = 0;          // 0..8 → ×1..×9
+let misses = [];      // 各問のまちがい回数
+let state = "idle";   // "listen" | "pause"
+
+function startDan(n) {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) audioCtx = new AC();
+  }
+  dan = n;
+  idx = 0;
+  misses = Array(9).fill(0);
+  $("quiz-dan").textContent = dan + "のだん";
+  showScreen("screen-quiz");
+  setupQuestion();
+  startRecognition();
+}
+
+function setupQuestion() {
+  state = "listen";
+  $("equation").textContent = dan + "×" + (idx + 1) + "=?";
+  $("reading").style.visibility = "hidden";
+  $("mark").className = "";
+  $("mark").textContent = "";
+  $("heard").innerHTML = "&nbsp;";
+  renderDots();
+}
+
+function renderDots() {
+  $("dots").innerHTML = Array.from({ length: 9 }, (_, i) => {
+    const cls = i < idx ? "done" : i === idx ? "now" : "todo";
+    return '<span class="' + cls + '">●</span>';
+  }).join("");
+}
+
+function onFinalResult(text) {
+  if (state !== "listen") return;
+  const answer = dan * (idx + 1);
+  if (judge(text, dan, idx + 1, READINGS[dan][idx])) {
+    state = "pause";
+    soundOK();
+    $("equation").textContent = dan + "×" + (idx + 1) + "=" + answer;
+    $("reading").textContent = READINGS[dan][idx];
+    $("reading").style.visibility = "visible";
+    $("mark").textContent = "○";
+    $("mark").className = "ok";
+    setTimeout(() => {
+      idx++;
+      if (idx >= 9) finish();
+      else setupQuestion();
+    }, 2000);
+  } else {
+    misses[idx]++;
+    soundNG();
+    $("mark").textContent = "×";
+    $("mark").className = "ng";
+    setTimeout(() => {
+      if (state === "listen") { $("mark").className = ""; $("mark").textContent = ""; }
+    }, 1200);
+  }
+}
+
+function finish() {
+  stopRecognition();
+  $("result-title").textContent = dan + "のだん クリア！";
+  const perfect = misses.filter(m => m === 0).length;
+  $("result-summary").textContent = "いちどで せいかい： " + perfect + " / 9 もん";
+  $("result-list").innerHTML = misses.map((m, i) => {
+    const b = i + 1;
+    const mk = m === 0
+      ? '<span class="mk ok">○</span>'
+      : '<span class="mk ng">×' + m + '</span>';
+    return '<div class="result-row"><span class="eq">' + dan + "×" + b + "=" + (dan * b) +
+      '</span><span class="yomi">' + READINGS[dan][i] + "</span>" + mk + "</div>";
+  }).join("");
+  if (dan < 9) {
+    $("btn-next").style.display = "";
+    $("btn-next").textContent = (dan + 1) + "のだんへ すすむ";
+  } else {
+    $("btn-next").style.display = "none";
+  }
+  showScreen("screen-result");
+}
+
+function goTop() {
+  stopRecognition();
+  showScreen("screen-top");
+}
+
+/* ===== 初期化 ===== */
+const grid = $("dan-grid");
+for (let n = 1; n <= 9; n++) {
+  const b = document.createElement("button");
+  b.className = "dan-btn";
+  b.textContent = n + "のだん";
+  b.addEventListener("click", () => startDan(n));
+  grid.appendChild(b);
+}
+$("btn-quit").addEventListener("click", goTop);
+$("btn-home").addEventListener("click", goTop);
+$("btn-next").addEventListener("click", () => startDan(dan + 1));
+
+if (!SR) {
+  $("unsupported").style.display = "block";
+  document.querySelectorAll(".dan-btn").forEach(b => b.disabled = true);
+}
+</script>
+</body>
+</html>
