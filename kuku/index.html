@@ -89,6 +89,7 @@
   }
   #mark.ok { color: rgba(102, 187, 106, 0.75); opacity: 1; }
   #mark.ng { color: rgba(239, 83, 80, 0.75); opacity: 1; }
+  #mark.unclear { color: rgba(255, 167, 38, 0.6); opacity: 1; font-size: 8rem; }
 
   .nav-row {
     display: flex;
@@ -157,6 +158,14 @@
   .result-row .mk.ng { color: #ef5350; }
   .result-row .mk.skip { color: #b0bec5; }
   .result-row .badge { font-size: 0.8rem; margin-left: 6px; }
+  .log-details {
+    text-align: left;
+    font-size: 0.8rem;
+    color: #90a4ae;
+    margin-bottom: 24px;
+  }
+  .log-details summary { cursor: pointer; }
+  .log-details .log-q { padding: 4px 0 4px 12px; line-height: 1.6; }
   #result-title { margin-bottom: 4px; }
   #result-summary { margin-bottom: 20px; color: #78909c; }
   .links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -229,6 +238,10 @@
   <h1 id="result-title"></h1>
   <p id="result-summary"></p>
   <div class="result-list" id="result-list"></div>
+  <details class="log-details">
+    <summary>きこえたこえの きろく</summary>
+    <div id="heard-log"></div>
+  </details>
   <div class="links">
     <button class="link-btn home" id="btn-home">トップに もどる</button>
     <button class="link-btn next" id="btn-next"></button>
@@ -310,43 +323,51 @@ const READING_TO_NUM = (() => {
   return list;
 })();
 
+// 判定は3値："ok"＝正解、"ng"＝明確に違う数を言った、"unclear"＝聞き取り失敗
+// （unclear は認識エンジンの失敗であって子どもの誤答ではないので×にしない）
 function judge(raw, a, b, canonical) {
   const ans = a * b;
   const base = baseNormalize(raw);
   const hira = base.replace(/[^ぁ-ゖー]/g, "");
   const ansR = numReadings(ans);
   // 1. 答えの読みのみ（「じゅうに」）は正解
-  for (const r of ansR) if (hira === r) return true;
+  for (const r of ansR) if (hira === r) return "ok";
   // 2. 正しい唱えパターン（正調＋読みバリエーション）との末尾一致
   const pats = new Set([canonical]);
   for (const ra of DIGIT_READINGS[a]) for (const rb of DIGIT_READINGS[b])
     for (const g of ["が", ""]) for (const rc of ansR) pats.add(ra + rb + g + rc);
-  for (const p of pats) if (hira.endsWith(p)) return true;
+  for (const p of pats) if (hira.endsWith(p)) return "ok";
   // 3. 数値化して判定（「1 1 が 1」「九九 81」「三四十二」など）
-  //    読みの融合も考慮：「にごじゅう」→250、「しちにじゅうし」→724 のように
-  //    答えが10〜19のとき b の読みが「〜じゅう〜」と結合して b*10+一の位 に化ける
-  const fused = (ans >= 10 && ans <= 19) ? b * 10 + (ans - 10) : null;
+  //    読みの融合も考慮：「にごじゅう」→250、「ごはしじゅう」→580 のように
+  //    答えが10台または10の倍数のとき、b の読みが「じゅう」と結合して
+  //    b*10+一の位 に化ける。この融合形を誤って受理するのは子どもが
+  //    本当に b*10 と誤答した場合だけで、窓が狭いので許容する
+  const fused = (ans >= 10 && (ans <= 19 || ans % 10 === 0)) ? b * 10 + (ans % 10) : null;
   for (const split of [false, true]) {
     const nums = (kanjiToDigits(base, split).match(/\d+/g) || []);
     if (!nums.length) continue;
     const last = Number(nums[nums.length - 1]);
     const joined = nums.join("");
-    if (last === ans) return true;
-    if (joined === "" + a + b + ans) return true;
-    // 融合形は「a＋融合数」の完全連結（250, 7 24）のみ。b を別に言った上での
+    if (last === ans) return "ok";
+    if (joined === "" + a + b + ans) return "ok";
+    // a や b の読みだけ拾われて答えと連結したケース（「5 40」→540）
+    if (joined === "" + a + ans || joined === "" + b + ans) return "ok";
+    // 融合形は「a＋融合数」の完全連結（250, 580, 7 24）のみ。b を別に言った上での
     // 「2 5 50」は本当に50と答えているので誤答のまま
-    if (fused !== null && joined === "" + a + fused) return true;
+    if (fused !== null && joined === "" + a + fused) return "ok";
   }
   // 4. 末尾の数の読み（最長一致）＝言った数が答えと違えば誤答
   let best = null;
   for (const [r, n] of READING_TO_NUM) {
     if (hira.endsWith(r) && (!best || r.length > best[0].length)) best = [r, n];
   }
-  if (best) return best[1] === ans;
+  if (best) return best[1] === ans ? "ok" : "ng";
   // 数値を言っていて答えと不一致なら誤答
-  if (/\d/.test(kanjiToDigits(base, false))) return false;
+  if (/\d/.test(kanjiToDigits(base, false))) return "ng";
   // 5. 正調の唱えとの類似度で聞き取りゆれを救済
-  return hira.length >= 4 && similarity(hira, canonical) >= 0.8;
+  if (hira.length >= 4 && similarity(hira, canonical) >= 0.8) return "ok";
+  // 数でも唱えでもない＝ただの聞き取り失敗
+  return "unclear";
 }
 
 /* ===== 効果音 ===== */
@@ -372,6 +393,9 @@ const soundNG = () => beep([220, 175], 0.22);
 
 /* ===== 画面制御 ===== */
 const $ = id => document.getElementById(id);
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $(id).classList.add("active");
@@ -393,7 +417,7 @@ function startRecognition() {
       const text = ev.results[i][0].transcript.trim();
       if (!text) continue;
       $("heard").textContent = "きこえたこえ：" + text;
-      if (ev.results[i].isFinal) onFinalResult(text);
+      handleResult(text, ev.results[i].isFinal);
     }
   };
   rec.onerror = ev => {
@@ -420,6 +444,7 @@ let idx = 0;            // 0..8 → ×1..×9
 let misses = [];        // 各問のまちがい回数
 let statuses = [];      // 各問が正解済みか
 let hints = [];         // 各問でヒントを使ったか
+let heardLog = [];      // 各問で確定した認識テキストの記録（判定調整用）
 let state = "idle";     // "listen" | "pause"
 let advanceTimer = null;
 
@@ -433,6 +458,7 @@ function startDan(n) {
   misses = Array(9).fill(0);
   statuses = Array(9).fill(false);
   hints = Array(9).fill(false);
+  heardLog = Array.from({ length: 9 }, () => []);
   $("quiz-dan").textContent = dan + "のだん";
   showScreen("screen-quiz");
   setupQuestion();
@@ -488,34 +514,51 @@ function goNext() {
   else { idx++; setupQuestion(); }
 }
 
-function onFinalResult(text) {
+function handleResult(text, isFinal) {
   if (state !== "listen") return;
-  const answer = dan * (idx + 1);
-  if (judge(text, dan, idx + 1, READINGS[dan][idx])) {
-    state = "pause";
-    statuses[idx] = true;
-    soundOK();
-    $("equation").textContent = dan + "×" + (idx + 1) + "=" + answer;
-    $("reading").textContent = READINGS[dan][idx];
-    $("reading").className = "";
-    $("reading").style.visibility = "visible";
-    $("mark").textContent = "○";
-    $("mark").className = "ok";
-    renderDots();
-    advanceTimer = setTimeout(() => {
-      idx++;
-      if (idx >= 9) finish();
-      else setupQuestion();
-    }, 2000);
-  } else {
+  const verdict = judge(text, dan, idx + 1, READINGS[dan][idx]);
+  if (isFinal) heardLog[idx].push({ text: text, verdict: verdict });
+  // 中間結果は正解の拾い上げにだけ使う。認識エンジンは確定時に
+  // 「250」のような数字列へ書き換える癖があり、確定前の方が正しいことがある
+  if (verdict === "ok") { acceptCorrect(); return; }
+  if (!isFinal) return;
+  if (verdict === "ng") {
     misses[idx]++;
     soundNG();
-    $("mark").textContent = "×";
-    $("mark").className = "ng";
-    setTimeout(() => {
-      if (state === "listen") { $("mark").className = ""; $("mark").textContent = ""; }
-    }, 1200);
+    flashMark("×", "ng");
+  } else {
+    // 聞き取り失敗は子どものせいではないので×もブザーも出さない
+    flashMark("？", "unclear");
   }
+}
+
+function flashMark(ch, cls) {
+  $("mark").textContent = ch;
+  $("mark").className = cls;
+  setTimeout(() => {
+    if (state === "listen" && $("mark").className === cls) {
+      $("mark").className = "";
+      $("mark").textContent = "";
+    }
+  }, 1200);
+}
+
+function acceptCorrect() {
+  state = "pause";
+  statuses[idx] = true;
+  soundOK();
+  $("equation").textContent = dan + "×" + (idx + 1) + "=" + dan * (idx + 1);
+  $("reading").textContent = READINGS[dan][idx];
+  $("reading").className = "";
+  $("reading").style.visibility = "visible";
+  $("mark").textContent = "○";
+  $("mark").className = "ok";
+  renderDots();
+  advanceTimer = setTimeout(() => {
+    idx++;
+    if (idx >= 9) finish();
+    else setupQuestion();
+  }, 2000);
 }
 
 function finish() {
@@ -535,6 +578,12 @@ function finish() {
     return '<div class="result-row"><span class="eq">' + dan + "×" + b + "=" + (dan * b) +
       '</span><span class="yomi">' + READINGS[dan][i] + "</span>" + mk + badge + "</div>";
   }).join("");
+  const vMark = { ok: "○", ng: "×", unclear: "？" };
+  $("heard-log").innerHTML = heardLog.map((entries, i) => {
+    if (!entries.length) return "";
+    return '<div class="log-q"><b>' + dan + "×" + (i + 1) + "</b>： " +
+      entries.map(e => vMark[e.verdict] + " " + escapeHtml(e.text)).join(" ／ ") + "</div>";
+  }).join("") || '<div class="log-q">（きろくなし）</div>';
   if (dan < 9) {
     $("btn-next").style.display = "";
     $("btn-next").textContent = (dan + 1) + "のだんへ すすむ";
