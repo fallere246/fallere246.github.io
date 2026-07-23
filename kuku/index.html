@@ -278,9 +278,20 @@ function numReadings(n) {
 
 /* ===== 認識テキストの正規化 ===== */
 const KANJI_NUM = {"〇":0,"零":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+// 九九の唱えは日常語彙に乏しい音なので、認識エンジンが同音の日常語に
+// 変換してしまう（しじゅう→始終 など）。それをかなに戻す変換表。
+// 数字パースを壊さないよう 十 はここでは触らない
+const HOMOPHONES = [
+  ["始終", "しじゅう"], ["位置", "いち"], ["一致", "いち"], ["二人", "ににん"], ["葉っぱ", "はっぱ"],
+  ["[市士氏師死詩誌歯]", "し"], ["[区句苦]", "く"], ["[語碁呉午]", "ご"], ["[山産酸参]", "さん"],
+  ["[荷似煮]", "に"], ["質", "しち"], ["[蜂鉢]", "はち"], ["[録麓]", "ろく"],
+  ["[重銃住充]", "じゅう"], ["[級球急旧休]", "きゅう"], ["[学額楽岳]", "がく"]
+].map(([p, k]) => [new RegExp(p, "g"), k]);
+
 function baseNormalize(s) {
   s = s.replace(/[０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
   s = s.replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+  for (const [re, kana] of HOMOPHONES) s = s.replace(re, kana);
   s = s.replace(/(です|でした|だよ|だ|よ|ね|。|、|\.|,|？|\?|！|!)+$/, "");
   return s;
 }
@@ -356,14 +367,19 @@ function judge(raw, a, b, canonical) {
     // 「2 5 50」は本当に50と答えているので誤答のまま
     if (fused !== null && joined === "" + a + fused) return "ok";
   }
+  // 正しい唱えの言いかけ（「ごろくさん…」で切れた等）は誤答ではなく聞き取り失敗扱い
+  const isTruncation = hira.length >= 2 &&
+    ([...pats, ...ansR].some(p => p.length > hira.length && p.startsWith(hira)));
   // 4. 末尾の数の読み（最長一致）＝言った数が答えと違えば誤答
   let best = null;
   for (const [r, n] of READING_TO_NUM) {
     if (hira.endsWith(r) && (!best || r.length > best[0].length)) best = [r, n];
   }
-  if (best) return best[1] === ans ? "ok" : "ng";
+  if (best) return best[1] === ans ? "ok" : (isTruncation ? "unclear" : "ng");
   // 数値を言っていて答えと不一致なら誤答
   if (/\d/.test(kanjiToDigits(base, false))) return "ng";
+  // 言いかけは類似度救済の対象にしない（答え部分が欠けたまま○になるのを防ぐ）
+  if (isTruncation) return "unclear";
   // 5. 正調の唱えとの類似度で聞き取りゆれを救済
   if (hira.length >= 4 && similarity(hira, canonical) >= 0.8) return "ok";
   // 数でも唱えでもない＝ただの聞き取り失敗
@@ -412,12 +428,17 @@ function startRecognition() {
   rec.lang = "ja-JP";
   rec.continuous = true;
   rec.interimResults = true;
+  rec.maxAlternatives = 5;
   rec.onresult = ev => {
     for (let i = ev.resultIndex; i < ev.results.length; i++) {
-      const text = ev.results[i][0].transcript.trim();
-      if (!text) continue;
-      $("heard").textContent = "きこえたこえ：" + text;
-      handleResult(text, ev.results[i].isFinal);
+      const alts = [];
+      for (let j = 0; j < ev.results[i].length; j++) {
+        const t = (ev.results[i][j].transcript || "").trim();
+        if (t) alts.push(t);
+      }
+      if (!alts.length) continue;
+      $("heard").textContent = "きこえたこえ：" + alts[0];
+      handleResult(alts, ev.results[i].isFinal);
     }
   };
   rec.onerror = ev => {
@@ -514,15 +535,20 @@ function goNext() {
   else { idx++; setupQuestion(); }
 }
 
-function handleResult(text, isFinal) {
+// alts: 認識エンジンの候補リスト（第1候補が最有力）。どれかが正解なら○。
+// ×判定だけは第1候補のみで下す——低確度の候補で子どもを罰しないため
+function handleResult(alts, isFinal) {
   if (state !== "listen") return;
-  const verdict = judge(text, dan, idx + 1, READINGS[dan][idx]);
-  if (isFinal) heardLog[idx].push({ text: text, verdict: verdict });
+  const verdicts = alts.map(t => judge(t, dan, idx + 1, READINGS[dan][idx]));
+  const anyOk = verdicts.indexOf("ok") !== -1;
+  if (isFinal) {
+    heardLog[idx].push({ text: alts.join(" ｜ "), verdict: anyOk ? "ok" : verdicts[0] });
+  }
   // 中間結果は正解の拾い上げにだけ使う。認識エンジンは確定時に
   // 「250」のような数字列へ書き換える癖があり、確定前の方が正しいことがある
-  if (verdict === "ok") { acceptCorrect(); return; }
+  if (anyOk) { acceptCorrect(); return; }
   if (!isFinal) return;
-  if (verdict === "ng") {
+  if (verdicts[0] === "ng") {
     misses[idx]++;
     soundNG();
     flashMark("×", "ng");
