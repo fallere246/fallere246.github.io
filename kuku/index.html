@@ -356,9 +356,14 @@ function judge(raw, a, b, canonical) {
   // 1. 答えの読みのみ（「じゅうに」）は正解
   for (const r of ansR) if (hira === r) return "ok";
   // 2. 正しい唱えパターン（正調＋読みバリエーション）との末尾一致
+  //    エンジンは先頭の無声化した音（ししち…の最初のし等）を発話検出で
+  //    落とすことがあるため、先頭オペランドの脱落形も正解として受理する
   const pats = new Set([canonical]);
-  for (const ra of DIGIT_READINGS[a]) for (const rb of DIGIT_READINGS[b])
-    for (const g of ["が", ""]) for (const rc of ansR) pats.add(ra + rb + g + rc);
+  if (canonical.length >= 4) pats.add(canonical.slice(1));
+  for (const rb of DIGIT_READINGS[b]) for (const g of ["が", ""]) for (const rc of ansR) {
+    pats.add(rb + g + rc);
+    for (const ra of DIGIT_READINGS[a]) pats.add(ra + rb + g + rc);
+  }
   for (const p of pats) if (hira.endsWith(p)) return "ok";
   // 3. 数値化して判定（「1 1 が 1」「九九 81」「三四十二」など）
   //    読みの融合も考慮：「にごじゅう」→250、「ごはしじゅう」→580 のように
@@ -366,6 +371,12 @@ function judge(raw, a, b, canonical) {
   //    b*10+一の位 に化ける。この融合形を誤って受理するのは子どもが
   //    本当に b*10 と誤答した場合だけで、窓が狭いので許容する
   const fused = (ans >= 10 && (ans <= 19 || ans % 10 === 0)) ? b * 10 + (ans % 10) : null;
+  // 先頭オペランド脱落＋融合の複合形：「(ご)はしじゅう」→「はちじゅう」「80」。
+  // 子どもが本当に b*10 系の数を単独で誤答した場合と区別できないが、
+  // 唱えの練習中に操作数抜きで数だけ言うケースは稀と判断して受理する
+  if (fused !== null) {
+    for (const r of numReadings(fused)) if (hira === r) return "ok";
+  }
   for (const split of [false, true]) {
     const nums = (kanjiToDigits(base, split).match(/\d+/g) || []);
     if (!nums.length) continue;
@@ -375,9 +386,10 @@ function judge(raw, a, b, canonical) {
     if (joined === "" + a + b + ans) return "ok";
     // a や b の読みだけ拾われて答えと連結したケース（「5 40」→540）
     if (joined === "" + a + ans || joined === "" + b + ans) return "ok";
-    // 融合形は「a＋融合数」の完全連結（250, 580, 7 24）のみ。b を別に言った上での
-    // 「2 5 50」は本当に50と答えているので誤答のまま
-    if (fused !== null && joined === "" + a + fused) return "ok";
+    // 融合形は「a＋融合数」の完全連結（250, 580, 7 24）と、先頭脱落した
+    // 融合数単独（80, 74）のみ。b を別に言った上での「2 5 50」は
+    // 本当に50と答えているので誤答のまま
+    if (fused !== null && (joined === "" + a + fused || joined === "" + fused)) return "ok";
   }
   // 正しい唱えの言いかけ（「ごろくさん…」で切れた等）は誤答ではなく聞き取り失敗扱い
   const isTruncation = hira.length >= 2 &&
