@@ -166,6 +166,17 @@
   }
   .log-details summary { cursor: pointer; }
   .log-details .log-q { padding: 4px 0 4px 12px; line-height: 1.6; }
+  .copy-btn {
+    font-family: inherit;
+    font-size: 0.8rem;
+    margin: 8px 0 4px 12px;
+    padding: 6px 14px;
+    border: 1px solid #b0bec5;
+    border-radius: 8px;
+    background: #fff;
+    color: #546e7a;
+    cursor: pointer;
+  }
   #result-title { margin-bottom: 4px; }
   #result-summary { margin-bottom: 20px; color: #78909c; }
   .links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -240,6 +251,7 @@
   <div class="result-list" id="result-list"></div>
   <details class="log-details">
     <summary>きこえたこえの きろく</summary>
+    <button class="copy-btn" id="btn-copy-log">きろくを コピー</button>
     <div id="heard-log"></div>
   </details>
   <div class="links">
@@ -283,7 +295,7 @@ const KANJI_NUM = {"〇":0,"零":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六"
 // 数字パースを壊さないよう 十 はここでは触らない
 const HOMOPHONES = [
   ["始終", "しじゅう"], ["位置", "いち"], ["一致", "いち"], ["二人", "ににん"], ["葉っぱ", "はっぱ"],
-  ["[市士氏師死詩誌歯]", "し"], ["[区句苦]", "く"], ["[語碁呉午]", "ご"], ["[山産酸参]", "さん"],
+  ["[市士氏師死詩誌歯視紙資支]", "し"], ["[区句苦]", "く"], ["[語碁呉午]", "ご"], ["[山産酸参]", "さん"],
   ["[荷似煮]", "に"], ["質", "しち"], ["[蜂鉢]", "はち"], ["[録麓]", "ろく"],
   ["[重銃住充]", "じゅう"], ["[級球急旧休]", "きゅう"], ["[学額楽岳]", "がく"]
 ].map(([p, k]) => [new RegExp(p, "g"), k]);
@@ -640,6 +652,21 @@ $("btn-next").addEventListener("click", () => startDan(dan + 1));
 $("btn-prev").addEventListener("click", goPrev);
 $("btn-skip").addEventListener("click", goNext);
 $("btn-hint").addEventListener("click", showHint);
+$("btn-copy-log").addEventListener("click", () => {
+  const vMark = { ok: "○", ng: "×", unclear: "？" };
+  const lines = ["【" + dan + "のだん きこえたこえのきろく】"];
+  heardLog.forEach((entries, i) => {
+    if (!entries.length) { lines.push(dan + "×" + (i + 1) + ": （きろくなし）"); return; }
+    lines.push(dan + "×" + (i + 1) + ": " +
+      entries.map(e => vMark[e.verdict] + "「" + e.text + "」").join(" ／ "));
+  });
+  navigator.clipboard.writeText(lines.join("\n")).then(() => {
+    $("btn-copy-log").textContent = "コピーしたよ！";
+    setTimeout(() => { $("btn-copy-log").textContent = "きろくを コピー"; }, 1500);
+  }).catch(() => {
+    $("btn-copy-log").textContent = "コピーできなかった…";
+  });
+});
 
 if (!SR) {
   $("unsupported").style.display = "block";
