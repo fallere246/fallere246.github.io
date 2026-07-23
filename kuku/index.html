@@ -73,6 +73,7 @@
     margin-bottom: 8px;
     visibility: hidden;
   }
+  #reading.hint { color: #f9a825; }
   #equation { font-size: 4.2rem; font-weight: bold; letter-spacing: 0.05em; }
   #mark {
     position: absolute;
@@ -88,6 +89,29 @@
   }
   #mark.ok { color: rgba(102, 187, 106, 0.75); opacity: 1; }
   #mark.ng { color: rgba(239, 83, 80, 0.75); opacity: 1; }
+
+  .nav-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .nav-btn {
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: bold;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 12px;
+    background: #fff;
+    color: #546e7a;
+    box-shadow: 0 3px 0 #cfd8dc;
+    cursor: pointer;
+  }
+  .nav-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #cfd8dc; }
+  .nav-btn:disabled { opacity: 0.35; pointer-events: none; }
+  .nav-btn.hint-btn { background: #fff8e1; color: #f9a825; box-shadow: 0 3px 0 #ffe082; }
+  .nav-btn.hint-btn:active { box-shadow: 0 1px 0 #ffe082; }
 
   .mic-line {
     display: flex;
@@ -131,6 +155,8 @@
   .result-row .mk { font-weight: bold; font-size: 1.2rem; }
   .result-row .mk.ok { color: #66bb6a; }
   .result-row .mk.ng { color: #ef5350; }
+  .result-row .mk.skip { color: #b0bec5; }
+  .result-row .badge { font-size: 0.8rem; margin-left: 6px; }
   #result-title { margin-bottom: 4px; }
   #result-summary { margin-bottom: 20px; color: #78909c; }
   .links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -187,6 +213,11 @@
     <div id="reading">&nbsp;</div>
     <div id="equation"></div>
     <div id="mark"></div>
+  </div>
+  <div class="nav-row">
+    <button class="nav-btn" id="btn-prev">◀ もどる</button>
+    <button class="nav-btn hint-btn" id="btn-hint">💡 ヒント</button>
+    <button class="nav-btn" id="btn-skip">すすむ ▶</button>
   </div>
   <div class="mic-line"><span class="mic-dot"></span><span>きいてるよ！ こえに だして いってね</span></div>
   <div id="heard">&nbsp;</div>
@@ -385,9 +416,12 @@ function stopRecognition() {
 
 /* ===== クイズ進行 ===== */
 let dan = 0;
-let idx = 0;          // 0..8 → ×1..×9
-let misses = [];      // 各問のまちがい回数
-let state = "idle";   // "listen" | "pause"
+let idx = 0;            // 0..8 → ×1..×9
+let misses = [];        // 各問のまちがい回数
+let statuses = [];      // 各問が正解済みか
+let hints = [];         // 各問でヒントを使ったか
+let state = "idle";     // "listen" | "pause"
+let advanceTimer = null;
 
 function startDan(n) {
   if (!audioCtx) {
@@ -397,6 +431,8 @@ function startDan(n) {
   dan = n;
   idx = 0;
   misses = Array(9).fill(0);
+  statuses = Array(9).fill(false);
+  hints = Array(9).fill(false);
   $("quiz-dan").textContent = dan + "のだん";
   showScreen("screen-quiz");
   setupQuestion();
@@ -404,20 +440,52 @@ function startDan(n) {
 }
 
 function setupQuestion() {
+  clearTimeout(advanceTimer);
   state = "listen";
   $("equation").textContent = dan + "×" + (idx + 1) + "=?";
+  $("reading").className = "";
   $("reading").style.visibility = "hidden";
   $("mark").className = "";
   $("mark").textContent = "";
   $("heard").innerHTML = "&nbsp;";
+  $("btn-prev").disabled = idx === 0;
+  $("btn-skip").textContent = idx === 8 ? "おわる ▶" : "すすむ ▶";
   renderDots();
 }
 
 function renderDots() {
   $("dots").innerHTML = Array.from({ length: 9 }, (_, i) => {
-    const cls = i < idx ? "done" : i === idx ? "now" : "todo";
+    const cls = i === idx ? "now" : statuses[i] ? "done" : "todo";
     return '<span class="' + cls + '">●</span>';
   }).join("");
+}
+
+/* 唱えの前半（答えの読みの直前まで）を返す：「いんいちがいち」→「いんいちが…」 */
+function hintPrefix(d, i) {
+  const canonical = READINGS[d][i];
+  const ans = d * (i + 1);
+  let best = "";
+  for (const r of numReadings(ans)) {
+    if (canonical.endsWith(r) && r.length > best.length) best = r;
+  }
+  return canonical.slice(0, canonical.length - best.length) + "…";
+}
+
+function showHint() {
+  if (state !== "listen") return;
+  hints[idx] = true;
+  $("reading").textContent = hintPrefix(dan, idx);
+  $("reading").className = "hint";
+  $("reading").style.visibility = "visible";
+}
+
+function goPrev() {
+  if (idx > 0) { idx--; setupQuestion(); }
+}
+
+function goNext() {
+  if (idx >= 8) finish();
+  else { idx++; setupQuestion(); }
 }
 
 function onFinalResult(text) {
@@ -425,13 +493,16 @@ function onFinalResult(text) {
   const answer = dan * (idx + 1);
   if (judge(text, dan, idx + 1, READINGS[dan][idx])) {
     state = "pause";
+    statuses[idx] = true;
     soundOK();
     $("equation").textContent = dan + "×" + (idx + 1) + "=" + answer;
     $("reading").textContent = READINGS[dan][idx];
+    $("reading").className = "";
     $("reading").style.visibility = "visible";
     $("mark").textContent = "○";
     $("mark").className = "ok";
-    setTimeout(() => {
+    renderDots();
+    advanceTimer = setTimeout(() => {
       idx++;
       if (idx >= 9) finish();
       else setupQuestion();
@@ -448,17 +519,21 @@ function onFinalResult(text) {
 }
 
 function finish() {
+  clearTimeout(advanceTimer);
   stopRecognition();
-  $("result-title").textContent = dan + "のだん クリア！";
-  const perfect = misses.filter(m => m === 0).length;
-  $("result-summary").textContent = "いちどで せいかい： " + perfect + " / 9 もん";
-  $("result-list").innerHTML = misses.map((m, i) => {
+  const allClear = statuses.every(s => s);
+  $("result-title").textContent = dan + "のだん " + (allClear ? "クリア！" : "けっか");
+  const perfect = statuses.filter((s, i) => s && misses[i] === 0 && !hints[i]).length;
+  $("result-summary").textContent = "じぶんの ちからで いちどで せいかい： " + perfect + " / 9 もん";
+  $("result-list").innerHTML = statuses.map((s, i) => {
     const b = i + 1;
-    const mk = m === 0
-      ? '<span class="mk ok">○</span>'
-      : '<span class="mk ng">×' + m + '</span>';
+    let mk;
+    if (!s) mk = '<span class="mk skip">−</span>';
+    else if (misses[i] === 0) mk = '<span class="mk ok">○</span>';
+    else mk = '<span class="mk ng">×' + misses[i] + '</span>';
+    const badge = hints[i] ? '<span class="badge">💡</span>' : "";
     return '<div class="result-row"><span class="eq">' + dan + "×" + b + "=" + (dan * b) +
-      '</span><span class="yomi">' + READINGS[dan][i] + "</span>" + mk + "</div>";
+      '</span><span class="yomi">' + READINGS[dan][i] + "</span>" + mk + badge + "</div>";
   }).join("");
   if (dan < 9) {
     $("btn-next").style.display = "";
@@ -470,6 +545,7 @@ function finish() {
 }
 
 function goTop() {
+  clearTimeout(advanceTimer);
   stopRecognition();
   showScreen("screen-top");
 }
@@ -486,6 +562,9 @@ for (let n = 1; n <= 9; n++) {
 $("btn-quit").addEventListener("click", goTop);
 $("btn-home").addEventListener("click", goTop);
 $("btn-next").addEventListener("click", () => startDan(dan + 1));
+$("btn-prev").addEventListener("click", goPrev);
+$("btn-skip").addEventListener("click", goNext);
+$("btn-hint").addEventListener("click", showHint);
 
 if (!SR) {
   $("unsupported").style.display = "block";
