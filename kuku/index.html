@@ -291,10 +291,20 @@ function judge(raw, a, b, canonical) {
   for (const ra of DIGIT_READINGS[a]) for (const rb of DIGIT_READINGS[b])
     for (const g of ["が", ""]) for (const rc of ansR) pats.add(ra + rb + g + rc);
   for (const p of pats) if (hira.endsWith(p)) return true;
-  // 3. 数値化して最後の数が答えに一致（「1 1 が 1」「九九 81」「三四十二」など）
+  // 3. 数値化して判定（「1 1 が 1」「九九 81」「三四十二」など）
+  //    読みの融合も考慮：「にごじゅう」→250、「しちにじゅうし」→724 のように
+  //    答えが10〜19のとき b の読みが「〜じゅう〜」と結合して b*10+一の位 に化ける
+  const fused = (ans >= 10 && ans <= 19) ? b * 10 + (ans - 10) : null;
   for (const split of [false, true]) {
-    const nums = (kanjiToDigits(base, split).match(/\d+/g) || []).map(Number);
-    if (nums.length && nums[nums.length - 1] === ans) return true;
+    const nums = (kanjiToDigits(base, split).match(/\d+/g) || []);
+    if (!nums.length) continue;
+    const last = Number(nums[nums.length - 1]);
+    const joined = nums.join("");
+    if (last === ans) return true;
+    if (joined === "" + a + b + ans) return true;
+    // 融合形は「a＋融合数」の完全連結（250, 7 24）のみ。b を別に言った上での
+    // 「2 5 50」は本当に50と答えているので誤答のまま
+    if (fused !== null && joined === "" + a + fused) return true;
   }
   // 4. 末尾の数の読み（最長一致）＝言った数が答えと違えば誤答
   let best = null;
