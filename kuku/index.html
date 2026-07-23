@@ -296,7 +296,9 @@ const KANJI_NUM = {"〇":0,"零":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六"
 const HOMOPHONES = [
   ["始終", "しじゅう"], ["位置", "いち"], ["一致", "いち"], ["二人", "ににん"], ["葉っぱ", "はっぱ"],
   ["印紙", "いんし"], ["因子", "いんし"], ["餓死", "がし"], ["賀詞", "がし"], ["[印韻陰員]", "いん"],
-  ["[市士氏師死詩誌歯視紙資支]", "し"], ["[区句苦]", "く"], ["[語碁呉午]", "ご"], ["[山産酸参]", "さん"],
+  ["支柱", "しじゅう"], ["残波", "さんぱ"], ["白く", "しろく"], ["久保", "くご"], ["黒", "くろ"],
+  ["中", "じゅう"], ["号", "ご"], ["[CcＣｃ]", "し"],
+  ["[市士氏師死詩誌歯視紙資支史]", "し"], ["[区句苦]", "く"], ["[語碁呉午]", "ご"], ["[山産酸参]", "さん"],
   ["[荷似煮]", "に"], ["質", "しち"], ["[蜂鉢]", "はち"], ["[録麓]", "ろく"],
   ["[重銃住充]", "じゅう"], ["[級球急旧休]", "きゅう"], ["[学額楽岳]", "がく"]
 ].map(([p, k]) => [new RegExp(p, "g"), k]);
@@ -402,6 +404,23 @@ function judge(raw, a, b, canonical) {
     // 融合数単独（80, 74）のみ。b を別に言った上での「2 5 50」は
     // 本当に50と答えているので誤答のまま
     if (fused !== null && (joined === "" + a + fused || joined === "" + fused)) return "ok";
+  }
+  // 3.5 答えの読みが数字とかなに割れて届く崩壊形（実地ログで確認）
+  //     しじゅうご→「し15」「415」「505?」、ごじゅうし→「50し」など
+  if (ans >= 20) {
+    const t = Math.floor(ans / 10), u = ans % 10;
+    const s = kanjiToDigits(base, false).replace(/\s+/g, "");
+    const tails = ["" + t + (10 + u)];                              // 415 (=し・じゅうご)
+    for (const rt of DIGIT_READINGS[t]) tails.push(rt + (10 + u));  // し15
+    if (u > 0) {
+      tails.push("" + t * 10 + u);                                  // 504 (=ごじゅう・し)
+      for (const ru of DIGIT_READINGS[u]) tails.push("" + t * 10 + ru); // 50し
+    }
+    for (const tail of tails) if (s.endsWith(tail)) return "ok";
+    // 十の位がかな側に呑まれて「1＋一の位」だけ残った形（「ごくし15」）
+    if (u > 0 && new RegExp("[ぁ-ゖー]{2,}[^0-9]*1" + u + "$").test(s)) return "ok";
+    // 一の位が呑まれて a b (t*10) だけ残った形（「8750」）は判定不能。×にしない
+    if ((s.match(/\d+/g) || []).join("") === "" + a + b + t * 10) return "unclear";
   }
   // 正しい唱えの言いかけ（「ごろくさん…」で切れた等）は誤答ではなく聞き取り失敗扱い
   const isTruncation = hira.length >= 2 &&
@@ -582,7 +601,11 @@ function handleResult(alts, isFinal) {
   }
   // 中間結果は正解の拾い上げにだけ使う。認識エンジンは確定時に
   // 「250」のような数字列へ書き換える癖があり、確定前の方が正しいことがある
-  if (anyOk) { acceptCorrect(); return; }
+  if (anyOk) {
+    if (!isFinal) heardLog[idx].push({ text: "(中間)" + alts.join(" ｜ "), verdict: "ok" });
+    acceptCorrect();
+    return;
+  }
   if (!isFinal) return;
   if (verdicts[0] === "ng") {
     misses[idx]++;
