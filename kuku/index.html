@@ -360,9 +360,18 @@ function judge(raw, a, b, canonical) {
   //    落とすことがあるため、先頭オペランドの脱落形も正解として受理する
   const pats = new Set([canonical]);
   if (canonical.length >= 4) pats.add(canonical.slice(1));
-  for (const rb of DIGIT_READINGS[b]) for (const g of ["が", ""]) for (const rc of ansR) {
-    pats.add(rb + g + rc);
-    for (const ra of DIGIT_READINGS[a]) pats.add(ra + rb + g + rc);
+  for (const rb of DIGIT_READINGS[b]) for (const g of ["が", ""]) {
+    for (const rc of ansR) {
+      pats.add(rb + g + rc);
+      for (const ra of DIGIT_READINGS[a]) pats.add(ra + rb + g + rc);
+    }
+    // 「じゅう」の無声化音列が丸ごと呑まれて答えの一の位だけ残る崩壊形
+    // （ろくしちしじゅうに→ろくしちに）。両オペランドの読みを必須にして
+    // 文脈を担保する。一の位が違う誤答はこのパターンには乗らない
+    if (ans >= 10 && ans % 10 !== 0) {
+      for (const ru of DIGIT_READINGS[ans % 10])
+        for (const ra of DIGIT_READINGS[a]) pats.add(ra + rb + g + ru);
+    }
   }
   for (const p of pats) if (hira.endsWith(p)) return "ok";
   // 3. 数値化して判定（「1 1 が 1」「九九 81」「三四十二」など）
@@ -386,6 +395,8 @@ function judge(raw, a, b, canonical) {
     if (joined === "" + a + b + ans) return "ok";
     // a や b の読みだけ拾われて答えと連結したケース（「5 40」→540）
     if (joined === "" + a + ans || joined === "" + b + ans) return "ok";
+    // 「じゅう」が呑まれて一の位だけ残った崩壊形（ろくしちしじゅうに→「672」）
+    if (ans >= 10 && ans % 10 !== 0 && joined === "" + a + b + (ans % 10)) return "ok";
     // 融合形は「a＋融合数」の完全連結（250, 580, 7 24）と、先頭脱落した
     // 融合数単独（80, 74）のみ。b を別に言った上での「2 5 50」は
     // 本当に50と答えているので誤答のまま
