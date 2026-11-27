@@ -1,78 +1,138 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>山手線内回り酒カスツアー</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KyZXEAg3QhqLMpG8r+Knujsl5/1z7/fS4BpVp5Bf3G7lC/4y4gq6Uq8Mf8/1yafk" crossorigin="anonymous">
-    <style>
-        #result {
-            font-size: 1.5rem;
-            margin-top: 1rem;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fallere246 のつくったもの</title>
+  <meta name="description" content="fallere246 が GitHub Pages で公開している Web ページの一覧">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f6f3;
+      --card: #ffffff;
+      --text: #1f1f1f;
+      --muted: #6b6b6b;
+      --border: #e4e2dc;
+      --accent: #2f6fdb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #141414;
+        --card: #1e1e1e;
+        --text: #ececec;
+        --muted: #a0a0a0;
+        --border: #333;
+        --accent: #7aa7ff;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      line-height: 1.7;
+    }
+    main {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 56px 16px 72px;
+    }
+    header h1 {
+      margin: 0 0 4px;
+      font-size: 1.9rem;
+      letter-spacing: .02em;
+    }
+    header p { margin: 0 0 40px; color: var(--muted); }
+    ul.works {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .works a {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 20px 22px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: inherit;
+      text-decoration: none;
+      transition: border-color .15s, transform .15s;
+    }
+    .works a:hover, .works a:focus-visible {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .works .icon { font-size: 1.8rem; line-height: 1; margin-bottom: 12px; }
+    .works h2 { margin: 0 0 6px; font-size: 1.1rem; }
+    .works p { margin: 0 0 14px; color: var(--muted); font-size: .93rem; flex: 1; }
+    .works .url { font-size: .8rem; color: var(--accent); word-break: break-all; }
+    footer {
+      margin-top: 48px;
+      font-size: .85rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--accent); }
+  </style>
 </head>
-<body class="container">
-    <h1 class="my-4">山手線内回り酒カスツアー</h1>
-    <div class="mb-3">
-        <label for="station-select" class="form-label">駅を選択:</label>
-        <select id="station-select" class="form-select">
-            <option id="1" value="1">東京</option>
-            <option id="2" value="2">神田</option>
-            <option id="3" value="3">秋葉原</option>
-            <option id="4" value="4">御徒町</option>
-            <option id="5" value="5">上野</option>
-            <option id="6" value="6">鶯谷</option>
-            <option id="7" value="7">日暮里</option>
-            <option id="8" value="8">西日暮里</option>
-            <option id="9" value="9">田端</option>
-            <option id="10" value="10">駒込</option>
-            <option id="11" value="11">巣鴨</option>
-            <option id="12" value="12">大塚</option>
-            <option id="13" value="13">池袋</option>
-            <option id="14" value="14">目白</option>
-            <option id="15" value="15">高田馬場</option>
-            <option id="16" value="16">新大久保</option>
-            <option id="17" value="17">新宿</option>
-            <option id="18" value="18">代々木</option>
-            <option id="19" value="19">原宿</option>
-            <option id="20" value="20">渋谷</option>
-            <option id="21" value="21">恵比寿</option>
-            <option id="22" value="22">目黒</option>
-            <option id="23" value="23">五反田</option>
-            <option id="24" value="24">品川</option>
-            <option id="25" value="25">高輪ゲートウェイ</option>
-            <option id="26" value="26">田町</option>
-            <option id="27" value="27">浜松町</option>
-            <option id="28" value="28">新橋</option>
-            <option id="29" value="29">有楽町</option>
-        </select>
-    </div>
-    <button id="roll-dice" class="btn btn-primary">サイコロを振る</button>
-    <div id="result" class="mt-4"></div>
+<body>
+  <main>
+    <header>
+      <h1>fallere246</h1>
+      <p>GitHub Pages で公開しているつくったもの</p>
+    </header>
 
-    <script>
-        document.getElementById('roll-dice').addEventListener('click', () => {
-            const stationSelect = document.getElementById('station-select');
-            const currentStationId = parseInt(stationSelect.options[stationSelect.selectedIndex].id);
-            const result = document.getElementById('result');
-            result.textContent = "";
+    <ul class="works">
+      <li>
+        <a href="/ddj-flx4/">
+          <span class="icon" aria-hidden="true">🎧</span>
+          <h2>FLX4 DJ 入門</h2>
+          <p>Pioneer DJ DDJ-FLX4 と rekordbox で DJ をはじめる人のための 24 レッスンと、本体の図から引けるマニュアル。</p>
+          <span class="url">fallere246.github.io/ddj-flx4/</span>
+        </a>
+      </li>
+      <li>
+        <a href="/om1-dive-guide/">
+          <span class="icon" aria-hidden="true">🤿</span>
+          <h2>OM-1 水中撮影ガイド</h2>
+          <p>UH-OM1 II ハウジング・FLP-09・UMG-01 で OM-1 を海に持っていくときのセッティングと操作のまとめ。オフラインでも使える。</p>
+          <span class="url">fallere246.github.io/om1-dive-guide/</span>
+        </a>
+      </li>
+      <li>
+        <a href="/exif-frame/">
+          <span class="icon" aria-hidden="true">🖼️</span>
+          <h2>EXIF Frame</h2>
+          <p>写真に撮影データ（EXIF）入りのフレームを付けるブラウザ上のツール。</p>
+          <span class="url">fallere246.github.io/exif-frame/</span>
+        </a>
+      </li>
+      <li>
+        <a href="/kuku/">
+          <span class="icon" aria-hidden="true">🔢</span>
+          <h2>くくチェック</h2>
+          <p>声で答えて、かけ算九九を覚えたか確かめる練習サイト。音声認識を使う。</p>
+          <span class="url">fallere246.github.io/kuku/</span>
+        </a>
+      </li>
+      <li>
+        <a href="/yamanote/">
+          <span class="icon" aria-hidden="true">🍺</span>
+          <h2>山手線内回り酒カスツアー</h2>
+          <p>サイコロを振って、山手線内回りで次に飲む駅を決める。</p>
+          <span class="url">fallere246.github.io/yamanote/</span>
+        </a>
+      </li>
+    </ul>
 
-            setTimeout(() => {
-                const diceRoll = Math.floor(Math.random() * 6) + 1;
-                result.textContent = `サイコロの目: ${diceRoll}`;
-
-                setTimeout(() => {
-                    const nextStationId = ((currentStationId + diceRoll - 1) % 29) + 1;
-                    const nextStationIndex = nextStationId === 0 ? 0 : nextStationId - 1;
-                    const nextStationName = stationSelect.options[nextStationIndex] ? stationSelect.options[nextStationIndex].text : "駅名が見つかりません";
-                    result.textContent += `, 次の駅: ${nextStationName}`;
-                }, 1000);
-            }, 1000);
-        });
-    </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz4fnFO9gybB2TlgzOM+tGJpbGpa0fJLTXmD6pVU6nQNt8rWh7e4jEwytI" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js" integrity="sha384-cn7l7gDp0eyniUwwAZgrzD06kc/tftFf19TOAs2zVinnD/C7E91j9yyk5//jjpt/" crossorigin="anonymous"></script>
+    <footer>
+      <a href="https://github.com/fallere246">GitHub: fallere246</a>
+    </footer>
+  </main>
 </body>
 </html>
